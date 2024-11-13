@@ -13,7 +13,7 @@ class PSNR(object):
 
     @staticmethod
     def __call__(img1: Tensor, img2: Tensor) -> Tensor:
-        mse = torch.mean((img1 - img2) ** 2)
+        mse = torch.mean((img1.to(torch.float32) - img2.to(torch.float32)) ** 2)
         return 20 * torch.log10(255.0 / torch.sqrt(mse))
 
 
@@ -286,8 +286,8 @@ class SSIM(torch.nn.Module):
 
     def forward(self, X: Tensor, Y: Tensor) -> Tensor:
         return ssim(
-            X,
-            Y,
+            X.to(torch.float32),
+            Y.to(torch.float32),
             data_range=self.data_range,
             size_average=self.size_average,
             win=self.win,
@@ -338,3 +338,44 @@ class MS_SSIM(torch.nn.Module):
             weights=self.weights,
             K=self.K,
         )
+
+
+class GMSD(torch.nn.Module):
+    # Refer to http://www4.comp.polyu.edu.hk/~cslzhang/IQA/GMSD/GMSD.htm
+
+    def __init__(self, channels: int = 3) -> None:
+        super(GMSD, self).__init__()
+        self.channels = channels
+        dx = (torch.Tensor([[1, 0, -1], [1, 0, -1], [1, 0, -1]]) / 3.).unsqueeze(0).unsqueeze(0).repeat(channels, 1, 1, 1)
+        dy = (torch.Tensor([[1, 1, 1], [0, 0, 0], [-1, -1, -1]]) / 3.).unsqueeze(0).unsqueeze(0).repeat(channels, 1, 1, 1)
+        self.dx = torch.nn.Parameter(dx, requires_grad=False).cuda()
+        self.dy = torch.nn.Parameter(dy, requires_grad=False).cuda()
+        self.aveKernel = torch.nn.Parameter(torch.ones(channels, 1, 2, 2) / 4., requires_grad=False).cuda()
+
+    def gmsd(self, img1: torch.Tensor, img2: torch.Tensor, T: int = 170) -> torch.Tensor:
+        y1 = F.conv2d(img1, self.aveKernel, stride=2, padding=0, groups=self.channels)
+        y2 = F.conv2d(img2, self.aveKernel, stride=2, padding=0, groups=self.channels)
+
+        ixy1 = F.conv2d(y1, self.dx, stride=1, padding=1, groups=self.channels)
+        iyy1 = F.conv2d(y1, self.dy, stride=1, padding=1, groups=self.channels)
+        gradient_map1 = torch.sqrt(ixy1 ** 2 + iyy1 ** 2 + 1e-12)
+
+        ixy2 = F.conv2d(y2, self.dx, stride=1, padding=1, groups=self.channels)
+        iyy2 = F.conv2d(y2, self.dy, stride=1, padding=1, groups=self.channels)
+        gradient_map2 = torch.sqrt(ixy2 ** 2 + iyy2 ** 2 + 1e-12)
+
+        quality_map = (2 * gradient_map1 * gradient_map2 + T) / (gradient_map1 ** 2 + gradient_map2 ** 2 + T)
+        score = torch.std(quality_map.view(quality_map.shape[0], -1), dim=1)
+        return score
+
+    def forward(self, y: torch.Tensor, x: torch.Tensor, as_loss: bool = True) -> torch.Tensor:
+        assert x.shape == y.shape
+        x = x * 255
+        y = y * 255
+        if as_loss:
+            score = self.gmsd(x, y)
+            return score.mean()
+        else:
+            with torch.no_grad():
+                score = self.gmsd(x, y)
+            return score

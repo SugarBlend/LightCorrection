@@ -1,6 +1,7 @@
 import torch
 import torchvision
 from typing import List, Any
+from torchvision.models import vgg19
 
 
 class VGGPerceptualLoss(torch.nn.Module):
@@ -44,3 +45,23 @@ class VGGPerceptualLoss(torch.nn.Module):
                 gram_y = act_y @ act_y.permute(0, 2, 1)
                 loss += torch.nn.functional.l1_loss(gram_x, gram_y)
         return loss
+
+
+def total_variation_loss(feature: torch.Tensor, weight: float = 1) -> float:
+    bs_img, c_img, h_img, w_img = feature.size()
+    tv_h = torch.pow(feature[:, :, 1:, :] - feature[:, :, :-1, :], 2).sum()
+    tv_w = torch.pow(feature[:, :, :, 1:] - feature[:, :, :, :-1], 2).sum()
+    return weight * (tv_h + tv_w) / (bs_img * c_img * h_img * w_img)
+
+
+class VGGLoss(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.vgg = vgg19(pretrained=True).features[:25].eval().cuda()
+        self.loss = torch.nn.MSELoss(size_average=11)
+
+    def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        vgg_first = self.vgg(input)
+        vgg_second = self.vgg(target)
+        perceptual_loss = self.loss(vgg_first, vgg_second)
+        return perceptual_loss
