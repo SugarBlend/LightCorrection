@@ -1,0 +1,45 @@
+model:
+  enable_search: false
+  pretrained_weights: ""
+
+  arch:
+#    module: models.discriminator
+#    name: Discriminator
+    module: models.discriminator
+    name: DiscriminatorForVGG
+#    module: models.mlp_discriminator
+#    name: MLPDiscriminator
+    params:
+      {}
+
+  optimizer:
+    module: torch.optim
+    name: AdamW
+    params:
+      lr: 0.001
+      weight_decay: 0.0001
+#    name: RMSprop
+#    params:
+#      lr: 0.0005
+
+  scheduler:
+    module: torch.optim.lr_scheduler
+#    name: ReduceLROnPlateau
+#    params:
+#      mode: min
+#      factor: 0.5
+#      patience: 5
+    name: CosineAnnealingLR
+    params:
+      T_max: 50
+      eta_min: 0.000001
+
+  loss:
+    module: models.utils.losses
+    name: DiscriminatorLoss
+    params: {}
+
+  init:
+    method: xavier_uniform_
+    params:
+      gain: 1.0

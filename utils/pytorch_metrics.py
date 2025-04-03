@@ -1,20 +1,16 @@
-# Copyright 2020 by Gongfan Fang, Zhejiang University.
-# All rights reserved.
-import warnings
-from typing import List, Optional, Tuple, Union
 import torch
-import torch.nn.functional as F
+import lpips
+import warnings
 from torch import Tensor
+import torch.nn.functional as F
+from typing import List, Optional, Tuple, Union
 
 
-class PSNR(object):
-    def __init__(self):
-        self.name = self.__class__.__name__
-
+class PSNR(torch.nn.Module):
     @staticmethod
-    def __call__(img1: Tensor, img2: Tensor) -> Tensor:
+    def __call__(img1: Tensor, img2: Tensor) -> float:
         mse = torch.mean((img1.to(torch.float32) - img2.to(torch.float32)) ** 2)
-        return 20 * torch.log10(255.0 / torch.sqrt(mse))
+        return (20 * torch.log10(255.0 / torch.sqrt(mse))).item()
 
 
 def _fspecial_gauss_1d(size: int, sigma: float) -> Tensor:
@@ -64,12 +60,12 @@ def gaussian_filter(input: Tensor, win: Tensor) -> Tensor:
 
 
 def _ssim(
-    X: Tensor,
-    Y: Tensor,
-    data_range: float,
-    win: Tensor,
-    size_average: bool = True,
-    K: Union[Tuple[float, float], List[float]] = (0.01, 0.03)
+        X: Tensor,
+        Y: Tensor,
+        data_range: float,
+        win: Tensor,
+        size_average: bool = True,
+        K: Union[Tuple[float, float], List[float]] = (0.01, 0.03)
 ) -> Tuple[Tensor, Tensor]:
     r""" Calculate ssim index for X and Y
 
@@ -112,16 +108,16 @@ def _ssim(
 
 
 def ssim(
-    X: Tensor,
-    Y: Tensor,
-    data_range: float = 255,
-    size_average: bool = True,
-    win_size: int = 11,
-    win_sigma: float = 1.5,
-    win: Optional[Tensor] = None,
-    K: Union[Tuple[float, float], List[float]] = (0.01, 0.03),
-    nonnegative_ssim: bool = False,
-) -> Tensor:
+        X: Tensor,
+        Y: Tensor,
+        data_range: float = 255,
+        size_average: bool = True,
+        win_size: int = 11,
+        win_sigma: float = 1.5,
+        win: Optional[Tensor] = None,
+        K: Union[Tuple[float, float], List[float]] = (0.01, 0.03),
+        nonnegative_ssim: bool = False,
+) -> Union[Tensor, float]:
     r""" interface of ssim
     Args:
         X (torch.Tensor): a batch of images, (N,C,H,W)
@@ -147,8 +143,8 @@ def ssim(
     if len(X.shape) not in (4, 5):
         raise ValueError(f"Input images should be 4-d or 5-d tensors, but got {X.shape}")
 
-    #if not X.type() == Y.type():
-    #    raise ValueError(f"Input images should have the same dtype, but got {X.type()} and {Y.type()}.")
+    if not X.type() == Y.type():
+       raise ValueError(f"Input images should have the same dtype, but got {X.type()} and {Y.type()}.")
 
     if win is not None:  # set win_size
         win_size = win.shape[-1]
@@ -165,22 +161,22 @@ def ssim(
         ssim_per_channel = torch.relu(ssim_per_channel)
 
     if size_average:
-        return ssim_per_channel.mean()
+        return ssim_per_channel.mean().item()
     else:
         return ssim_per_channel.mean(1)
 
 
 def ms_ssim(
-    X: Tensor,
-    Y: Tensor,
-    data_range: float = 255,
-    size_average: bool = True,
-    win_size: int = 11,
-    win_sigma: float = 1.5,
-    win: Optional[Tensor] = None,
-    weights: Optional[List[float]] = None,
-    K: Union[Tuple[float, float], List[float]] = (0.01, 0.03)
-) -> Tensor:
+        X: Tensor,
+        Y: Tensor,
+        data_range: float = 255,
+        size_average: bool = True,
+        win_size: int = 11,
+        win_sigma: float = 1.5,
+        win: Optional[Tensor] = None,
+        weights: Optional[List[float]] = None,
+        K: Union[Tuple[float, float], List[float]] = (0.01, 0.03)
+) -> Union[Tensor, float]:
     r""" interface of ms-ssim
     Args:
         X (torch.Tensor): a batch of images, (N,C,[T,]H,W)
@@ -202,8 +198,8 @@ def ms_ssim(
         X = X.squeeze(dim=d)
         Y = Y.squeeze(dim=d)
 
-    #if not X.type() == Y.type():
-    #    raise ValueError(f"Input images should have the same dtype, but got {X.type()} and {Y.type()}.")
+    if not X.type() == Y.type():
+        raise ValueError(f"Input images should have the same dtype, but got {X.type()} and {Y.type()}.")
 
     if len(X.shape) == 4:
         avg_pool = F.avg_pool2d
@@ -220,7 +216,7 @@ def ms_ssim(
 
     smaller_side = min(X.shape[-2:])
     assert smaller_side > (win_size - 1) * (
-        2 ** 4
+            2 ** 4
     ), "Image size should be larger than %d due to the 4 downsamplings in ms-ssim" % ((win_size - 1) * (2 ** 4))
 
     if weights is None:
@@ -247,22 +243,22 @@ def ms_ssim(
     ms_ssim_val = torch.prod(mcs_and_ssim ** weights_tensor.view(-1, 1, 1), dim=0)
 
     if size_average:
-        return ms_ssim_val.mean()
+        return ms_ssim_val.mean().item()
     else:
         return ms_ssim_val.mean(1)
 
 
 class SSIM(torch.nn.Module):
     def __init__(
-        self,
-        data_range: float = 255,
-        size_average: bool = True,
-        win_size: int = 11,
-        win_sigma: float = 1.5,
-        channel: int = 3,
-        spatial_dims: int = 2,
-        K: Union[Tuple[float, float], List[float]] = (0.01, 0.03),
-        nonnegative_ssim: bool = False,
+            self,
+            data_range: float = 255,
+            size_average: bool = True,
+            win_size: int = 11,
+            win_sigma: float = 1.5,
+            channel: int = 3,
+            spatial_dims: int = 2,
+            K: Union[Tuple[float, float], List[float]] = (0.01, 0.03),
+            nonnegative_ssim: bool = False,
     ) -> None:
         r""" class for ssim
         Args:
@@ -282,7 +278,6 @@ class SSIM(torch.nn.Module):
         self.data_range = data_range
         self.K = K
         self.nonnegative_ssim = nonnegative_ssim
-        self.name = self.__class__.__name__
 
     def forward(self, X: Tensor, Y: Tensor) -> Tensor:
         return ssim(
@@ -298,15 +293,15 @@ class SSIM(torch.nn.Module):
 
 class MS_SSIM(torch.nn.Module):
     def __init__(
-        self,
-        data_range: float = 255,
-        size_average: bool = True,
-        win_size: int = 11,
-        win_sigma: float = 1.5,
-        channel: int = 3,
-        spatial_dims: int = 2,
-        weights: Optional[List[float]] = None,
-        K: Union[Tuple[float, float], List[float]] = (0.01, 0.03),
+            self,
+            data_range: float = 255,
+            size_average: bool = True,
+            win_size: int = 11,
+            win_sigma: float = 1.5,
+            channel: int = 3,
+            spatial_dims: int = 2,
+            weights: Optional[List[float]] = None,
+            K: Union[Tuple[float, float], List[float]] = (0.01, 0.03),
     ) -> None:
         r""" class for ms-ssim
         Args:
@@ -346,8 +341,10 @@ class GMSD(torch.nn.Module):
     def __init__(self, channels: int = 3) -> None:
         super(GMSD, self).__init__()
         self.channels = channels
-        dx = (torch.Tensor([[1, 0, -1], [1, 0, -1], [1, 0, -1]]) / 3.).unsqueeze(0).unsqueeze(0).repeat(channels, 1, 1, 1)
-        dy = (torch.Tensor([[1, 1, 1], [0, 0, 0], [-1, -1, -1]]) / 3.).unsqueeze(0).unsqueeze(0).repeat(channels, 1, 1, 1)
+        dx = (torch.Tensor([[1, 0, -1], [1, 0, -1], [1, 0, -1]]) / 3.).unsqueeze(0).unsqueeze(0).repeat(channels, 1, 1,
+                                                                                                        1)
+        dy = (torch.Tensor([[1, 1, 1], [0, 0, 0], [-1, -1, -1]]) / 3.).unsqueeze(0).unsqueeze(0).repeat(channels, 1, 1,
+                                                                                                        1)
         self.dx = torch.nn.Parameter(dx, requires_grad=False).cuda()
         self.dy = torch.nn.Parameter(dy, requires_grad=False).cuda()
         self.aveKernel = torch.nn.Parameter(torch.ones(channels, 1, 2, 2) / 4., requires_grad=False).cuda()
@@ -368,14 +365,24 @@ class GMSD(torch.nn.Module):
         score = torch.std(quality_map.view(quality_map.shape[0], -1), dim=1)
         return score
 
-    def forward(self, y: torch.Tensor, x: torch.Tensor, as_loss: bool = True) -> torch.Tensor:
+    @torch.no_grad()
+    def forward(self, y: torch.Tensor, x: torch.Tensor) -> float:
         assert x.shape == y.shape
-        x = x * 255
-        y = y * 255
-        if as_loss:
-            score = self.gmsd(x, y)
-            return score.mean()
-        else:
-            with torch.no_grad():
-                score = self.gmsd(x, y)
-            return score
+        return self.gmsd(x, y).mean().item()
+
+
+class LPIPS(torch.nn.Module):
+    def __init__(self) -> None:
+        super(LPIPS, self).__init__()
+        self.loss_fn = lpips.LPIPS(net='vgg').cuda()
+
+    @staticmethod
+    def preprocess_image(img: torch.Tensor) -> torch.Tensor:
+        img = img.float() / 255.0 * 2 - 1
+        if img.ndimension() == 3:
+            img = img.unsqueeze(0)
+        return img
+
+    @torch.no_grad()
+    def forward(self, img1: torch.Tensor, img2: torch.Tensor) -> float:
+        return self.loss_fn(self.preprocess_image(img1), self.preprocess_image(img2)).mean().item()

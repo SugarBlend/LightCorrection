@@ -1,0 +1,145 @@
+custom_augmentations:
+  - utils.union_dataloader
+  - utils.augmentation
+
+normalization_range: [-1, 1]
+#normalization_range: [0, 1]
+
+train:
+  dataloader:
+    module: torch.utils.data
+    name: DataLoader
+    params:
+      batch_size: 4
+      shuffle: true
+#      num_workers: 4
+      pin_memory: true
+#      prefetch_factor: 2
+      collate_fn:
+#        module: torch.utils.data._utils.collate
+        module: utils.union_dataloader
+        name: default_collate
+  dataset:
+    module: utils.union_dataloader
+    name: UnionDataset
+    params:
+      data:
+        low: [
+#          "D:/Datasets/LOL-v2/Synthetic/Train/Normal",
+#          "D:/Datasets/DIV2K",
+#          "D:/Datasets/BSD400",
+          "D:/Datasets/ImageNet_crop/train",
+#          "D:/Datasets/CBSD68-dataset/CBSD68/noisy5",
+#          "D:/Datasets/CBSD68-dataset/CBSD68/noisy10",
+#          "D:/Datasets/CBSD68-dataset/CBSD68/noisy15",
+#          "D:/Datasets/CBSD68-dataset/CBSD68/noisy25"
+#          "D:/Datasets/SSID_val/input_crops"
+#          "D:/Datasets/BrighteningTrain/high"
+#          "D:/Datasets/LOL-v2/Real_captured/Train/Normal"
+        ]
+        target: [
+#          "D:/Datasets/LOL-v2/Synthetic/Train/Normal",
+#          "D:/Datasets/DIV2K",
+#          "D:/Datasets/BSD400",
+          "D:/Datasets/ImageNet_crop/train",
+#          "D:/Datasets/CBSD68-dataset/CBSD68/original_png",
+#          "D:/Datasets/CBSD68-dataset/CBSD68/original",
+#          "D:/Datasets/CBSD68-dataset/CBSD68/original",
+#          "D:/Datasets/CBSD68-dataset/CBSD68/original"
+#          "D:/Datasets/SSID_val/target_crops"
+#          "D:/Datasets/BrighteningTrain/high"
+#          "D:/Datasets/LOL-v2/Real_captured/Train/Normal"
+        ]
+      patch_size: [64, 64]
+      device: cpu
+      transforms:
+        both:
+          name: ReplayCompose
+          params:
+            transforms:
+              - name: HorizontalFlip
+                params: { p: 0.5 }
+              - name: VerticalFlip
+                params: { p: 0.5 }
+#              - name: Rotate
+#                params: { limit: (-30, 30), p: 0.5 }
+              - name: PadIfSmall
+                params: { min_height: 128, min_width: 128}
+              - name: RandomCrop
+                params: { height: 128, width: 128 }
+              - name: NormalizeImage
+                params: { p: 1.0 }
+#              - name: Normalize
+#                params: { mean: [0.485, 0.456, 0.406], std: [0.229, 0.224, 0.225], max_pixel_value: 1.0 }
+              - name: ToTensorV2
+                params: { }
+        inputs:
+          name: Compose
+          params:
+            transforms:
+              - name: GaussNoise
+                params: { std_range: [ 0.02, 0.1 ], p: 1.0 }
+
+test:
+  dataloader:
+    module: torch.utils.data
+    name: DataLoader
+    params:
+      batch_size: 4
+      shuffle: false
+#      num_workers: 4
+      pin_memory: true
+#      prefetch_factor: 2
+      collate_fn:
+#        module: torch.utils.data._utils.collate
+        module: utils.union_dataloader
+        name: default_collate
+  dataset:
+    module: utils.union_dataloader
+    name: UnionDataset
+    params:
+      data:
+        low: [
+#          "D:/Datasets/LOL-v2/Synthetic/Test/Normal",
+#          "D:/Datasets/CBSD68-dataset/CBSD68/noisy5",
+#          "D:/Datasets/CBSD68-dataset/CBSD68/noisy10",
+#          "D:/Datasets/CBSD68-dataset/CBSD68/noisy15",
+#          "D:/Datasets/CBSD68-dataset/CBSD68/noisy25"
+#          "D:/Datasets/CBSD68-dataset/CBSD68/original_png",
+#          "D:/Datasets/LOLdataset/eval15/high"
+          "D:/Datasets/ImageNet_crop/val",
+#          "D:/Datasets/LOL-v2/Real_captured/Test/Normal"
+        ]
+        target: [
+#          "D:/Datasets/LOL-v2/Synthetic/Test/Normal",
+#          "D:/Datasets/CBSD68-dataset/CBSD68/original_png",
+#          "D:/Datasets/CBSD68-dataset/CBSD68/original_png",
+#          "D:/Datasets/CBSD68-dataset/CBSD68/original_png",
+#          "D:/Datasets/CBSD68-dataset/CBSD68/original_png",
+#          "D:/Datasets/LOLdataset/eval15/high"
+          "D:/Datasets/ImageNet_crop/val",
+#          "D:/Datasets/LOL-v2/Real_captured/Test/Normal"
+        ]
+      patch_size: [64, 64]
+      device: cpu
+      transforms:
+        both:
+          name: ReplayCompose
+          params:
+            transforms:
+              - name: PadIfSmall
+                params: { min_height: 128, min_width: 128}
+#              - name: RandomCrop
+#                params: { height: 128, width: 128 }
+              - name: CenterCrop
+                params: { height: 128, width: 128 }
+              - name: NormalizeImage
+                params: { p: 1.0 }
+              - name: ToTensorV2
+                params: { }
+        inputs:
+          name: Compose
+          params:
+            transforms:
+              - name: GaussNoise
+                params: { std_range: [ 0.02, 0.1 ], p: 1.0 }

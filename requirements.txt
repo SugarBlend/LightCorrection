@@ -2,10 +2,18 @@ opencv-python>=4.9.0.80
 opencv-contrib-python>=4.9.0.80
 numpy==1.23.5
 --find-links https://download.pytorch.org/whl/torch/
-torch==1.13.1+cu116
+torch==2.5.1+cu121
 --find-links https://download.pytorch.org/whl/torchvision/
-torchvision==0.14.1+cu116
+torchvision==0.20.1+cu121
 --find-links https://download.pytorch.org/whl/torchaudio/
-torchaudio==0.13.1+cu116
+torchaudio==2.5.1+cu121
 tqdm>=4.66.4
 clearml>=1.16.2
+mlflow
+colorama
+kornia
+einops
+pytorch_ssim
+torchinfo
+lpips
+albumentations

@@ -1,0 +1,45 @@
+experiment:
+  name: "Image denoising"
+
+logging:
+  backend: mlflow
+  project_name: "Image denoising"
+  task_name: "experiment"
+
+#datasets: "configs/datasets/datasets.yaml"
+datasets: "configs/datasets/denoise_task_datasets.yaml"
+
+training:
+  device: "cuda:0"
+  mode: "gan"
+  seed: 42
+  epochs: 50
+  mixed_precision: false
+  early_stopping:
+    patience: 10
+    min_delta: 0.001
+  show_test: true
+
+  gan:
+#    generator: "configs/models/unet_denoiser.yaml"
+    generator: "configs/models/mlp_denoiser.yaml"
+#    generator: "configs/models/restormer.yaml"
+    discriminator: "configs/models/discriminator.yaml"
+
+  standard:
+#    model: "configs/models/model.yaml"
+#    model: "configs/models/mlp_denoiser.yaml"
+    model: "configs/models/restormer.yaml"
+#    model: "configs/models/kan_denoiser.yaml"
+#    model: "configs/models/unet_denoiser.yaml"
+
+  validation:
+    module: utils.pytorch_metrics
+    metrics:
+      - PSNR
+      - SSIM
+      - GMSD
+      - LPIPS
+    calculate_metrics: true
+    collect_outputs: true
+    std_range: [5, 10, 15, 20, 25]

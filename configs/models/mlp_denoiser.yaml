@@ -1,0 +1,47 @@
+model:
+  enable_search: true
+  pretrained_weights: ""
+
+  arch:
+#    module: models.mlp_denoiser
+    module: models.mlp_denoiser_v6
+#    module: models.mlp_denoiser_v5
+#    module: models.mlp_denoiser_v4
+#    module: models.mlp_denoiser_v3
+#    module: models.mlp_denoiser_v2
+#    module: models.mlp_denoiser_v1
+#    module: models.mlp_denoiser_v0
+    name: MLPDenoiser
+    params:
+      kernel_size: [9]
+      num_of_layers: [5, 10, 15]
+      channels: [3]
+
+  optimizer:
+    module: torch.optim
+    name: AdamW
+    params:
+      lr: 0.001
+      weight_decay: 0.00001
+      betas: [0.9, 0.999]
+
+  scheduler:
+    module: torch.optim.lr_scheduler
+#    name: CosineAnnealingWarmRestarts
+#    params:
+#      T_0: 50
+#      T_mult: 2
+    name: CosineAnnealingLR
+    params:
+      T_max: 50
+      eta_min: 0.000001
+
+  loss:
+    module: torch.nn
+    name: MSELoss
+    params: {}
+
+  init:
+    method: xavier_uniform_
+    params:
+      gain: 1.0
